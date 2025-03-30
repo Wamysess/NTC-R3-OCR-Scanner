@@ -1,0 +1,2 @@
+# NCT
+bored ako 
