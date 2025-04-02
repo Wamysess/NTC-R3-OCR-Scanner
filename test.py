@@ -92,75 +92,57 @@ class OCRApp:
             self.process_next_pdf()
 
     def find_valid_until_by_location(self, image):
-        """Extract the 'Valid Until' date based on its location relative to the 'Valid Until' label."""
-        # Extract text data with location (bounding box) information
-        data = pytesseract.image_to_data(image, output_type=Output.DICT)
+        """Extract the 'Valid Until' date by cropping the relevant area before OCR processing."""
+        # Convert image to grayscale for better OCR accuracy
+        gray = image.convert("L")
 
-        valid_until_y_position = None
-        valid_until_text = None
-        valid_until_found = False
+        # Define the starting point of "Valid" at (x=2175, y=1257)
+        crop_area = (2175, 1257, 2600, 1500)  # (x1, y1, x2, y2) Adjust these values for your image
 
-        # Get image width and height for debugging
-        image_width, image_height = image.size
-        print(f"Image width: {image_width}, Image height: {image_height}")
+        # Crop the image to the area below the word "Valid"
+        cropped_image = gray.crop(crop_area)
 
-        # Define the midpoint of the image width to focus on the right half
-        half_width = image_width // 2
-        print(f"Right side threshold (half of image width): {half_width}")
+        # Optional: Preprocess the cropped image to improve OCR accuracy
+        # Apply thresholding to make the text stand out more
+        threshold_image = cropped_image.point(lambda p: p > 200 and 255)  # Simple threshold
 
-        # Search for "Valid" and "Until" in close proximity on the right side
-        valid_x_positions = []  # To store positions of "Valid" and "Until"
-        for i in range(len(data['text']) - 1, -1, -1):  # Loop from the end to the beginning (right to left)
-            word = data['text'][i]
-            x = data['left'][i]
-            y = data['top'][i]
+        # Display the thresholded image for verification (optional)
+        """threshold_image.show()"""
+
+        # Run OCR on the cropped image (now thresholded for better contrast)
+        valid_until_text = pytesseract.image_to_string(threshold_image, config="--psm 6").strip()
+
+        print(f"Extracted OCR Text: {valid_until_text}")
+        
+        # Remove any unwanted text (like "Valid Until") that might appear in the OCR output
+        valid_until_text = re.sub(r"Valid\s*Until[:\-]?\s*", "", valid_until_text).strip()
+
+        # Validate and clean extracted text to match date formats (e.g., 30-Jul-20 or 30-Jul-2020)
+        match = re.match(r"\d{2}-[A-Za-z]{3}-(\d{2}|\d{4})", valid_until_text)
+        
+        if match:
+            # Extract year part
+            valid_until_year = match.group(1)
             
-            # Print the word's coordinates and the word itself for debugging
-            print(f"Word: {word}, x={x}, y={y}")
+            # If the year is in 4-digit format (e.g., 2020), extract only the last two digits
+            if len(valid_until_year) == 4:
+                valid_until_year = valid_until_year[-2:]  # Keep only last two digits (e.g., 2020 -> 20)
 
-            if 'valid' in word.lower() or 'until' in word.lower():
-                # Check if "Valid" and "Until" are within close proximity
-                valid_x_positions.append((word.lower(), x, y))
-
-        # Check for "Valid" and "Until" in proximity and confirm their positions
-        valid_until_y_position = None
-        for i in range(len(valid_x_positions) - 1):
-            word1, x1, y1 = valid_x_positions[i]
-            word2, x2, y2 = valid_x_positions[i + 1]
-
-            # If we have "Valid" and "Until" in close proximity, treat it as "Valid Until"
-            if ('valid' in word1 and 'until' in word2) or ('until' in word1 and 'valid' in word2):
-                # We consider this as a "Valid Until" label
-                print(f"Found 'Valid Until' label between words at positions: (x1={x1}, y1={y1}) and (x2={x2}, y2={y2})")
-                valid_until_y_position = max(y1, y2) + 10  # Add a buffer to avoid detection of nearby text
-                valid_until_found = True
-                break
-
-        # If the 'Valid Until' label is found, search for the date below it
-        if valid_until_found:
-            for i in range(len(data['text']) - 1, -1, -1):
-                word = data['text'][i]
-                x = data['left'][i]
-                y = data['top'][i]
-
-                # Only check words below the 'Valid Until' label's Y position
-                if y > valid_until_y_position:
-                    # Check if the word matches the date format (e.g., 31-Jul-17)
-                    if re.match(r"\d{2}-[A-Za-z]{3}-\d{2}", word):  # Match pattern like 31-Jul-17
-                        valid_until_text = word
-                        print(f"Found Valid Until text: {valid_until_text} at position: (x={x}, y={y})")
-                        break
-
-        if valid_until_found and valid_until_text:
-            print(f"Valid Until Text: {valid_until_text}")
+            print(f"Extracted Valid Until Year: {valid_until_year}")
+            return valid_until_year
         else:
-            print("Valid Until label or text not found.")
+            print("OCR failed to detect the correct date format. Trying alternative processing.")
+            return "Not Found"
+        
+    def find_control_code(self, text):
+        """Extract the Control Code starting with 'RLMP' or 'NTCNCR'."""
+        # Updated regex for Control Code: Match 'RLMP' or 'NTCNCR' followed by optional hyphens and alphanumeric characters
+        control_match = re.search(r"\b(RLMP|NTCNCR)(?:-[A-Za-z0-9]+)+\b", text)
 
-        return valid_until_text if valid_until_text else "Not Found"
-
-
-
-
+        if control_match:
+            return control_match.group(0)  # Return the full match (e.g., 'RLMP-CC-02523-17')
+        else:
+            return ""  # Return 'Unknown' if no control code is found
 
 
 
@@ -234,13 +216,13 @@ class OCRApp:
         # Extract just the year from the Valid Until field (e.g., "23" from "07-Sep-23")
         valid_year = valid_match.group(1).split('-')[-1] if valid_match else "00"
 
-        control_match = re.search(r"Control Code[:\-]?\s*(\d+)", cleaned_text, re.IGNORECASE)
+        # Find Control Code using the new function
+        control_code = self.find_control_code(cleaned_text)
 
         # Extracted information with fallback values
         name = name_match.group(1) if name_match else "Unknown"
         or_number = or_match.group(1) if or_match else "000000"
         valid_until = valid_year  # Only use the year
-        control_code = control_match.group(1) if control_match else "000000"
 
         # Format name to Lastname, Firstname M.I. (if applicable)
         name_parts = name.split()
@@ -251,6 +233,7 @@ class OCRApp:
             name = f"{last_name}, {first_name} {middle_initial}".strip()
 
         return name, or_number, valid_until, control_code
+
     
 
     def display_image(self, img):
