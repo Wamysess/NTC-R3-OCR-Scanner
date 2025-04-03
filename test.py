@@ -134,7 +134,7 @@ class OCRApp:
             print("OCR failed to detect the correct date format. Trying alternative processing.")
             return "Not Found"
         
-    def find_control_code(self, text):
+    def find_control_code_by_location(self, text):
         """Extract the Control Code starting with 'RLMP' or 'NTCNCR'."""
         # Updated regex for Control Code: Match 'RLMP' or 'NTCNCR' followed by optional hyphens and alphanumeric characters
         control_match = re.search(r"\b(RLMP|NTCNCR)(?:-[A-Za-z0-9]+)+\b", text)
@@ -143,7 +143,6 @@ class OCRApp:
             return control_match.group(0)  # Return the full match (e.g., 'RLMP-CC-02523-17')
         else:
             return ""  # Return 'Unknown' if no control code is found
-
 
 
     def process_next_pdf(self):
@@ -157,11 +156,14 @@ class OCRApp:
 
             # Extract text from the PDF and other necessary fields (Name, O.R. Number, Control Code)
             extracted_text = self.extract_text_from_pdf(pdf_path)
-
             name, or_number, _, control_code = self.extract_info(extracted_text)
 
             # Extract the Valid Until date based on location
             valid_until = self.find_valid_until_by_location(image)
+
+            # Extract Control Code by location
+            control_code = self.find_control_code_by_location(extracted_text)
+
 
             # Populate the input fields with extracted values
             self.name_entry.delete(0, tk.END)
@@ -182,8 +184,6 @@ class OCRApp:
         else:
             messagebox.showinfo("Done", "All PDFs have been processed.")
 
-
-
     def extract_text_from_pdf(self, pdf_path):
         """Convert PDF to images and extract text using OCR"""
         images = convert_from_path(pdf_path, dpi=300)
@@ -191,7 +191,6 @@ class OCRApp:
         for img in images:
             text += pytesseract.image_to_string(img, config="--psm 6") + "\n"
         return text.strip()
-
 
     def extract_info(self, text):
         """Extract the necessary information from OCR text"""
@@ -217,7 +216,7 @@ class OCRApp:
         valid_year = valid_match.group(1).split('-')[-1] if valid_match else "00"
 
         # Find Control Code using the new function
-        control_code = self.find_control_code(cleaned_text)
+        control_code = self.find_control_code_by_location(cleaned_text)
 
         # Extracted information with fallback values
         name = name_match.group(1) if name_match else "Unknown"
@@ -232,7 +231,7 @@ class OCRApp:
             middle_initial = name_parts[1][0] + '.' if len(name_parts) > 2 else ''
             name = f"{last_name}, {first_name} {middle_initial}".strip()
 
-        return name, or_number, valid_until, control_code
+        return name, or_number, valid_until,control_code
 
     
 
