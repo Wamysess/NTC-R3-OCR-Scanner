@@ -1,6 +1,4 @@
-# NCT
-bored ako 
+#NTC 
 
 
-
-please work
+Wamy's License scanner
