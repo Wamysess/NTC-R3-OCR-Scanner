@@ -112,7 +112,7 @@ class OCRApp:
 
     def find_control_code_by_location(self, text):
         control_match = re.search(r"\b(RLMP|NTCNCR)(?:-[A-Za-z0-9]+)+\b", text)
-        return control_match.group(0) if control_match else ""
+        return control_match.group(0) if control_match else "RLMP-CC- - "
 
     def process_next_pdf(self):
         if self.current_file_index < len(self.pdf_files):
