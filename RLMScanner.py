@@ -183,6 +183,11 @@ class OCRApp:
             if self.confirm_navigation("previous"):
                 self.current_file_index -= 1
                 self.process_next_pdf()
+    def confirm_navigation(self, direction):
+        return messagebox.askyesno(
+            "Navigate",
+            f"Are you sure you want to go to the {direction} PDF without processing the current one?"
+        )
 
     def extract_text_from_pdf(self, pdf_path):
         images = convert_from_path(pdf_path, dpi=200)
