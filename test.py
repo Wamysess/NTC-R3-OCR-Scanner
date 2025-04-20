@@ -40,6 +40,16 @@ class OCRApp:
 
         self.canvas = tk.Canvas(self.right_frame, bg="gray")
         self.canvas.pack(fill=tk.BOTH, expand=True)
+        
+        nav_frame = tk.Frame(self.right_frame)
+        nav_frame.pack(pady=10)
+
+        self.prev_btn = tk.Button(nav_frame, text="Previous", command=self.show_previous_pdf)
+        self.prev_btn.pack(side=tk.LEFT, padx=10)
+
+        self.next_btn = tk.Button(nav_frame, text="Next", command=self.show_next_pdf)
+        self.next_btn.pack(side=tk.LEFT, padx=10)
+
 
         self.create_input_fields()
         self.create_remarks_section()
@@ -112,13 +122,15 @@ class OCRApp:
 
     def find_control_code_by_location(self, text):
         control_match = re.search(r"\b(RLMP|NTCNCR)(?:-[A-Za-z0-9]+)+\b", text)
-        return control_match.group(0) if control_match else "RLMP-CC- - "
+        return control_match.group(0) if control_match else ""
 
-    def process_next_pdf(self):
-        if self.current_file_index < len(self.pdf_files):
-            image = self.images[self.current_file_index]  # Get preloaded image
+    def process_next_pdf(self, index=None):
+        if index is not None:
+            self.current_file_index = index
 
-            # Extract text from the first page of the current PDF
+        if 0 <= self.current_file_index < len(self.pdf_files):
+            image = self.images[self.current_file_index]
+
             pdf_path = os.path.join(self.folder_path.get(), self.pdf_files[self.current_file_index])
             extracted_text = self.extract_text_from_pdf(pdf_path)
             name, or_number, _, control_code = self.extract_info(extracted_text)
@@ -139,10 +151,22 @@ class OCRApp:
 
             self.display_image(image)
         else:
-            messagebox.showinfo("Done", "All PDFs have been processed.")
+            messagebox.showinfo("End", "No more PDFs in this direction.")
+            
+    def show_next_pdf(self):
+        if self.current_file_index < len(self.pdf_files) - 1:
+            if self.confirm_navigation("next"):
+                self.current_file_index += 1
+                self.process_next_pdf()
+
+    def show_previous_pdf(self):
+        if self.current_file_index > 0:
+            if self.confirm_navigation("previous"):
+                self.current_file_index -= 1
+                self.process_next_pdf()
 
     def extract_text_from_pdf(self, pdf_path):
-        images = convert_from_path(pdf_path, dpi=200)  # ✅ Lowered DPI here for OCR text extraction
+        images = convert_from_path(pdf_path, dpi=200)
         text = ""
         for img in images:
             text += pytesseract.image_to_string(img, config="--psm 6") + "\n"
@@ -192,14 +216,22 @@ class OCRApp:
         new_filename = f"{or_number}_RML_{remarks}_{name}_20{valid_year}_{control_code}.pdf"
         new_filepath = os.path.join(folder, new_filename)
 
-        if not os.path.exists(new_filepath):
-            os.rename(pdf_path, new_filepath)
-            messagebox.showinfo("Success", f"Renamed: {new_filename}")
-        else:
-            messagebox.showerror("Error", f"File with name {new_filename} already exists.")
+        confirm = messagebox.askyesno("Confirm Rename", f"Are you sure you want to rename:\n\n{self.pdf_files[self.current_file_index]}\n\nto\n\n{new_filename}?")
+        if not confirm:
+            return
+
+        try:
+            if not os.path.exists(new_filepath):
+                os.rename(pdf_path, new_filepath)
+                messagebox.showinfo("Success", f"Renamed: {new_filename}")
+            else:
+                messagebox.showerror("Error", f"File with name {new_filename} already exists.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to rename file: {str(e)}")
 
         self.current_file_index += 1
         self.process_next_pdf()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
