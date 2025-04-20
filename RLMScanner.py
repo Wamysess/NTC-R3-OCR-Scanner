@@ -183,6 +183,7 @@ class OCRApp:
             if self.confirm_navigation("previous"):
                 self.current_file_index -= 1
                 self.process_next_pdf()
+                
     def confirm_navigation(self, direction):
         return messagebox.askyesno(
             "Navigate",
