@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -7,19 +8,32 @@ from PIL import Image, ImageTk
 import pytesseract
 from PIL import ImageDraw
 
+# Function to handle resource path for both development and packaged application
+def resource_path(relative_path):
+    """ Get the path to a resource, works for dev and for PyInstaller bundle """
+    try:
+        # PyInstaller creates a temporary folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        # If running as a normal script, use the current directory
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
+
 # Set Tesseract OCR path
-tess_path = os.path.join(os.path.dirname(__file__), 'resource', 'tess', 'tesseract.exe')
+tess_path = resource_path('resource/tess/tesseract.exe')
 pytesseract.pytesseract.tesseract_cmd = tess_path
 
-icon_path = os.path.join(os.path.dirname(__file__), 'resource', 'wamy.ico')
+# Set the icon path
+icon_path = resource_path('resource/wamy.ico')
 
 class OCRApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Wamy's RLM Scanner  ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧")
         self.root.geometry("1000x600")
-        self.root.iconbitmap(icon_path)
-        
+        self.root.iconbitmap(icon_path)  # Set the icon
+
         self.top_frame = tk.Frame(root, padx=10, pady=10)
         self.top_frame.pack(fill=tk.X)
 
