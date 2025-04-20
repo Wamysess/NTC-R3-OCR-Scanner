@@ -137,11 +137,11 @@ class OCRApp:
                 valid_until_year = valid_until_year[-2:]
             return valid_until_year
 
-        return "Not Found"
+        return ""
 
     def find_control_code_by_location(self, text):
         control_match = re.search(r"\b(RLMP|NTCNCR)(?:-[A-Za-z0-9]+)+\b", text)
-        return control_match.group(0) if control_match else ""
+        return control_match.group(0) if control_match else "RLMP-"
 
     def process_next_pdf(self, index=None):
         if index is not None:
@@ -183,7 +183,6 @@ class OCRApp:
             if self.confirm_navigation("previous"):
                 self.current_file_index -= 1
                 self.process_next_pdf()
-                
     def confirm_navigation(self, direction):
         return messagebox.askyesno(
             "Navigate",
@@ -205,8 +204,8 @@ class OCRApp:
         valid_year = valid_match.group(1).split('-')[-1] if valid_match else "00"
         control_code = self.find_control_code_by_location(cleaned_text)
 
-        name = name_match.group(1) if name_match else "Unknown"
-        or_number = or_match.group(1) if or_match else "000000"
+        name = name_match.group(1) if name_match else ""
+        or_number = or_match.group(1) if or_match else ""
 
         name_parts = name.split()
         if len(name_parts) >= 2:
