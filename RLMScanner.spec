@@ -5,7 +5,7 @@ a = Analysis(
     ['RLMScanner.py'],
     pathex=[],
     binaries=[],
-    datas=[('resource', 'resource')],
+    datas=[('resource/tess/tesseract.exe', 'resource/tess'), ('resource', 'resource')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
